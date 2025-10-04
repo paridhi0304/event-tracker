@@ -1,7 +1,9 @@
+
 require('dotenv').config();
 const express = require('express');
 const mysql = require('mysql2');
 const cors = require('cors');
+const admin = require('firebase-admin');
 
 const app = express();
 app.use(cors());
@@ -22,6 +24,13 @@ db.connect((err) => {
   }
   console.log('✅ MySQL connected!');
 });
+
+// Firebase Admin
+const serviceAccount = require('./serviceAccountKey.json');
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount)
+});
+console.log('✅ Firebase Admin initialized!');
 
 // Basic route
 app.get('/', (req, res) => {
