@@ -49,6 +49,16 @@ app.post('/events', (req, res) => {
   });
 });
 
+// Get all events
+app.get('/events', (req, res) => {
+  db.query('SELECT * FROM events', (err, results) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(results);
+  });
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
