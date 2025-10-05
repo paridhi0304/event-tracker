@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Event Tracker</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
     <style>
         body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4; }
         h1 { color: #333; }
@@ -30,38 +33,53 @@
     <div id="eventList"></div>
 
     <script>
+        // Paste your firebaseConfig here (from Firebase Console)
+        const firebaseConfig = {
+            apiKey: "AIzaSy...",  // Your actual apiKey
+            authDomain: "event-tracker-cec96.firebaseapp.com",
+            databaseURL: "https://event-tracker-cec96-default-rtdb.firebaseio.com/",  // Your DB URL
+            projectId: "event-tracker-cec96",
+            storageBucket: "event-tracker-cec96.appspot.com",
+            messagingSenderId: "123...",  // Your actual
+            appId: "1:123...:web:abc..."  // Your actual
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
         const eventListDiv = document.getElementById('eventList');
         const addEventBtn = document.getElementById('addEvent');
         const refreshListBtn = document.getElementById('refreshList');
         const nameInput = document.getElementById('eventName');
         const dateInput = document.getElementById('eventDate');
 
-        // Load and display events
-        async function loadEvents() {
-            console.log('🔄 Fetching events...');  // Browser console log
-            try {
-                const response = await fetch('/events');
-                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                const events = await response.json();
-                eventListDiv.innerHTML = events.map(event => `
-                    <div class="event">
-                        <strong>${event.name}</strong> on ${event.date} (ID: ${event.id})
-                        ${event.created_at ? `<br><small>Added: ${new Date(event.created_at).toLocaleString()}</small>` : ''}
-                    </div>
-                `).join('');
-                console.log(`✅ Loaded ${events.length} events`);
-            } catch (error) {
-                console.error('❌ Error loading events:', error);
-                eventListDiv.innerHTML = `<div class="event" style="color: red;">Error: ${error.message}</div>`;
-                alert('Failed to load events: ' + error.message);
-            }
+        // Render events from Firebase snapshot
+        function renderEvents(eventsData) {
+            const events = Object.values(eventsData || {});
+            eventListDiv.innerHTML = events.map(event => `
+                <div class="event">
+                    <strong>${event.name}</strong> on ${event.date} (ID: ${event.id})
+                    ${event.created_at ? `<br><small>Added: ${new Date(event.created_at).toLocaleString()}</small>` : ''}
+                </div>
+            `).join('');
+            console.log(`✅ Rendered ${events.length} events from Firebase`);
         }
 
-        // Add event
+        // Real-time listener: Auto-updates UI on any change
+        db.ref('events').on('value', (snapshot) => {
+            console.log('🔥 Live update from Firebase!');
+            renderEvents(snapshot.val());
+        }, (error) => {
+            console.error('❌ Firebase listener error:', error);
+            eventListDiv.innerHTML = '<div style="color: red;">Connection lost—check console.</div>';
+        });
+
+        // Add event (triggers server POST, Firebase syncs → UI auto-updates)
         addEventBtn.addEventListener('click', async () => {
             const name = nameInput.value.trim();
             const date = dateInput.value;
-            console.log('🆕 Adding event:', { name, date });  // Browser console log
+            console.log('🆕 Adding event:', { name, date });
             if (!name || !date) {
                 alert('Please enter both name and date!');
                 return;
@@ -77,24 +95,28 @@
                     throw new Error(errorData.error || `HTTP ${response.status}`);
                 }
                 const result = await response.json();
-                console.log('✅ Event added:', result);
-                nameInput.value = '';  // Clear inputs
+                console.log('✅ Event added via server:', result);
+                nameInput.value = '';  // Clear form
                 dateInput.value = '';
-                loadEvents();  // Auto-refresh list
+                // No manual refresh—listener handles it!
             } catch (error) {
                 console.error('❌ Error adding event:', error);
-                alert('Failed to add event: ' + error.message + '\nCheck console for details.');
+                alert('Failed to add event: ' + error.message);
             }
         });
 
-        // Refresh button
+        // Refresh (manual fallback—offloads from Firebase)
         refreshListBtn.addEventListener('click', () => {
-            console.log('🔄 Manual refresh clicked');
-            loadEvents();
+            console.log('🔄 Manual refresh fallback');
+            db.ref('events').once('value').then((snapshot) => {
+                renderEvents(snapshot.val());
+            }).catch((error) => {
+                console.error('❌ Refresh error:', error);
+            });
         });
 
-        // Load on page start
-        loadEvents();
+        // Initial load (via listener—runs on page open)
+        console.log('🚀 Event Tracker loaded with real-time sync!');
     </script>
 </body>
 </html>
