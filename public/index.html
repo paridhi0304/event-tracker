@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Tracker</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f4f4; }
+        h1 { color: #333; }
+        input { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; width: 200px; }
+        button { padding: 10px 16px; margin: 5px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #45a049; }
+        #refreshList { background-color: #008CBA; }
+        #refreshList:hover { background-color: #007B9A; }
+        .event { background: white; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .event strong { color: #333; }
+        #eventList { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Event Tracker</h1>
+    <p>Add events and see the list update in real-time!</p>
+    
+    <input type="text" id="eventName" placeholder="Event name (e.g., Team Meet)">
+    <input type="date" id="eventDate">
+    <br>
+    <button id="addEvent">Add Event</button>
+    <button id="refreshList">Refresh List</button>
+    
+    <div id="eventList"></div>
+
+    <script>
+        const eventListDiv = document.getElementById('eventList');
+        const addEventBtn = document.getElementById('addEvent');
+        const refreshListBtn = document.getElementById('refreshList');
+        const nameInput = document.getElementById('eventName');
+        const dateInput = document.getElementById('eventDate');
+
+        // Load and display events
+        async function loadEvents() {
+            console.log('🔄 Fetching events...');  // Browser console log
+            try {
+                const response = await fetch('/events');
+                if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const events = await response.json();
+                eventListDiv.innerHTML = events.map(event => `
+                    <div class="event">
+                        <strong>${event.name}</strong> on ${event.date} (ID: ${event.id})
+                        ${event.created_at ? `<br><small>Added: ${new Date(event.created_at).toLocaleString()}</small>` : ''}
+                    </div>
+                `).join('');
+                console.log(`✅ Loaded ${events.length} events`);
+            } catch (error) {
+                console.error('❌ Error loading events:', error);
+                eventListDiv.innerHTML = `<div class="event" style="color: red;">Error: ${error.message}</div>`;
+                alert('Failed to load events: ' + error.message);
+            }
+        }
+
+        // Add event
+        addEventBtn.addEventListener('click', async () => {
+            const name = nameInput.value.trim();
+            const date = dateInput.value;
+            console.log('🆕 Adding event:', { name, date });  // Browser console log
+            if (!name || !date) {
+                alert('Please enter both name and date!');
+                return;
+            }
+            try {
+                const response = await fetch('/events', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, date })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+                const result = await response.json();
+                console.log('✅ Event added:', result);
+                nameInput.value = '';  // Clear inputs
+                dateInput.value = '';
+                loadEvents();  // Auto-refresh list
+            } catch (error) {
+                console.error('❌ Error adding event:', error);
+                alert('Failed to add event: ' + error.message + '\nCheck console for details.');
+            }
+        });
+
+        // Refresh button
+        refreshListBtn.addEventListener('click', () => {
+            console.log('🔄 Manual refresh clicked');
+            loadEvents();
+        });
+
+        // Load on page start
+        loadEvents();
+    </script>
+</body>
+</html>
