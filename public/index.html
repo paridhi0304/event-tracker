@@ -17,6 +17,7 @@
         #refreshList:hover { background-color: #007B9A; }
         .event { background: white; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0; padding: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .event strong { color: #333; }
+        .event button { padding: 5px 10px; margin: 2px; font-size: 12px; }
         #eventList { margin-top: 20px; }
     </style>
 </head>
@@ -54,13 +55,18 @@
         const nameInput = document.getElementById('eventName');
         const dateInput = document.getElementById('eventDate');
 
-        // Render events from Firebase snapshot
+        let editingId = null;  // Track edit mode
+
+        // Render events from Firebase snapshot (with edit/delete buttons)
         function renderEvents(eventsData) {
             const events = Object.values(eventsData || {});
             eventListDiv.innerHTML = events.map(event => `
                 <div class="event">
                     <strong>${event.name}</strong> on ${event.date} (ID: ${event.id})
                     ${event.created_at ? `<br><small>Added: ${new Date(event.created_at).toLocaleString()}</small>` : ''}
+                    <br>
+                    <button onclick="editEvent(${event.id}, '${event.name.replace(/'/g, "\\'")}', '${event.date}')">Edit</button>
+                    <button onclick="deleteEvent(${event.id})" style="background: #f44336; margin-left: 5px;">Delete</button>
                 </div>
             `).join('');
             console.log(`✅ Rendered ${events.length} events from Firebase`);
@@ -75,33 +81,60 @@
             eventListDiv.innerHTML = '<div style="color: red;">Connection lost—check console.</div>';
         });
 
-        // Add event (triggers server POST, Firebase syncs → UI auto-updates)
+        // Edit: Fill form
+        function editEvent(id, name, date) {
+            editingId = id;
+            nameInput.value = name;
+            dateInput.value = date;
+            addEventBtn.textContent = 'Update Event';
+            nameInput.focus();
+        }
+
+        // Delete: Confirm & API call
+        function deleteEvent(id) {
+            if (confirm('Delete this event?')) {
+                fetch(`/events/${id}`, { method: 'DELETE' })
+                    .then(res => res.json())
+                    .then(() => console.log('🗑️ Deleted:', id))
+                    .catch(err => alert('Delete failed: ' + err));
+            }
+        }
+
+        // Updated add button: Handles add OR update
         addEventBtn.addEventListener('click', async () => {
             const name = nameInput.value.trim();
             const date = dateInput.value;
-            console.log('🆕 Adding event:', { name, date });
             if (!name || !date) {
                 alert('Please enter both name and date!');
                 return;
             }
             try {
-                const response = await fetch('/events', {
-                    method: 'POST',
+                let url = '/events';
+                let method = 'POST';
+                let body = JSON.stringify({ name, date });
+                if (editingId) {
+                    url = `/events/${editingId}`;
+                    method = 'PUT';
+                    editingId = null;
+                    addEventBtn.textContent = 'Add Event';
+                }
+                const response = await fetch(url, {
+                    method,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, date })
+                    body
                 });
                 if (!response.ok) {
                     const errorData = await response.json();
                     throw new Error(errorData.error || `HTTP ${response.status}`);
                 }
                 const result = await response.json();
-                console.log('✅ Event added via server:', result);
-                nameInput.value = '';  // Clear form
+                console.log('✅ Saved:', result);
+                nameInput.value = '';
                 dateInput.value = '';
-                // No manual refresh—listener handles it!
+                // Listener auto-updates UI
             } catch (error) {
-                console.error('❌ Error adding event:', error);
-                alert('Failed to add event: ' + error.message);
+                console.error('❌ Error saving:', error);
+                alert('Failed: ' + error.message);
             }
         });
 
@@ -113,6 +146,16 @@
             }).catch((error) => {
                 console.error('❌ Refresh error:', error);
             });
+        });
+
+        // Escape to cancel edit
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && editingId) {
+                editingId = null;
+                addEventBtn.textContent = 'Add Event';
+                nameInput.value = '';
+                dateInput.value = '';
+            }
         });
 
         // Initial load (via listener—runs on page open)
