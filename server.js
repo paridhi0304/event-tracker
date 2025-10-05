@@ -37,6 +37,18 @@ app.get('/', (req, res) => {
   res.json({ message: 'Event Tracker API is running!' });
 });
 
+// Create event
+app.post('/events', (req, res) => {
+  const { name, date } = req.body;
+  const query = 'INSERT INTO events (name, date) VALUES (?, ?)';
+  db.query(query, [name, date], (err, result) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: result.insertId, message: 'Event created!' });
+  });
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
