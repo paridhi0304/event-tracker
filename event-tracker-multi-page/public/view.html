@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check My Meets - Event Tracker</title>
+    <!--Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: radial-gradient(ellipse at bottom, #0A0A0A 0%, #000000 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: #fff;
+            position: relative;
+            overflow-x: hidden;
+        }
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite alternate;
+        }
+        .star:nth-child(odd) { animation-delay: 0s; }
+        .star:nth-child(even) { animation-delay: 1.5s; }
+        @keyframes twinkle {
+            0% { opacity: 0.3; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.3); }
+        }
+        .planets {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .planet {
+            position: absolute;
+            border-radius: 50%;
+            animation: orbit 20s linear infinite;
+        }
+        .planet.small {
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, #8B5CF6 0%, #4C1D95 100%);
+            box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+        }
+        .planet.medium {
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, #EC4899 0%, #BE185D 100%);
+            box-shadow: 0 0 30px rgba(236, 72, 153, 0.6);
+        }
+        .planet.large {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, #06B6D4 0%, #0891B2 100%);
+            box-shadow: 0 0 40px rgba(6, 182, 212, 0.7);
+        }
+        @keyframes orbit {
+            0% { transform: rotate(0deg) translateX(200px) rotate(0deg); }
+            100% { transform: rotate(360deg) translateX(200px) rotate(-360deg); }
+        }
+        .rockets {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .rocket {
+            position: absolute;
+            font-size: 2em;
+            animation: rocketFly 15s linear infinite;
+        }
+        @keyframes rocketFly {
+            0% { transform: translateY(100vh) rotate(-45deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100px) rotate(-45deg); opacity: 0; }
+        }
+        .nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .nav a {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 20px;
+            margin-left: 10px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .nav a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+            min-height: 100vh;
+            color: #fff;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 20px 30px;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            color: #fff;
+            margin: 0;
+            font-weight: 600;
+            font-size: 2.5em;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1 i {
+            font-size: 1.2em;
+            animation: pulse 2s infinite;
+            color: #8B5CF6;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .search-container {
+            position: relative;
+        }
+        .search-container i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            pointer-events: none;
+        }
+        #searchInputView {
+            padding: 12px 20px 12px 45px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            width: 200px;
+            font-size: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #searchInputView::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        #searchInputView:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.5);
+            width: 220px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(167, 139, 250, 0.2) 100%);
+        }
+        .event {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            margin: 15px 0;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            color: #fff;
+        }
+        .event::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #8B5CF6, #A78BFA);
+            border-radius: 20px 0 0 20px;
+        }
+        .event.work { border-left-color: #3B82F6; }
+        .event.work::before { background: linear-gradient(180deg, #3B82F6, #1D4ED8); }
+        .event.personal { border-left-color: #10B981; }
+        .event.personal::before { background: linear-gradient(180deg, #10B981, #059669); }
+        .event.holiday { border-left-color: #F59E0B; }
+        .event.holiday::before { background: linear-gradient(180deg, #F59E0B, #D97706); }
+        .event.other { border-left-color: #6B7280; }
+        .event.other::before { background: linear-gradient(180deg, #6B7280, #4B5563); }
+        .event.past {
+            opacity: 0.7;
+            border-left-color: #9CA3AF;
+        }
+        .event.past::before {
+            background: linear-gradient(180deg, #9CA3AF, #6B7280);
+        }
+        .event:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.1) 100%);
+        }
+        .event strong {
+            color: #fff;
+            font-size: 20px;
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .event .badge {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        .event .category-badge {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        .event .category-badge.work { background: rgba(59, 130, 246, 0.3); color: #3B82F6; }
+        .event .category-badge.personal { background: rgba(16, 185, 129, 0.3); color: #10B981; }
+        .event .category-badge.holiday { background: rgba(245, 158, 11, 0.3); color: #F59E0B; }
+        .event .category-badge.other { background: rgba(107, 114, 128, 0.3); color: #6B7280; }
+        .event .venue {
+            display: block;
+            color: #fff;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+        .event small {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            display: block;
+            margin-bottom: 15px;
+        }
+        #eventListView {
+            margin-top: 20px;
+        }
+        @media (max-width: 600px) {
+            header { flex-direction: column; gap: 15px; text-align: center; }
+            #searchInputView { width: 100%; }
+            h1 { font-size: 2em; }
+            .event { padding: 20px; margin: 10px 0; }
+        }
+        .robot-section {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            z-index: 5;
+            transform: scale(1.5);
+        }
+        .robot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: robotFloat 4s ease-in-out infinite;
+        }
+        .robot-head {
+            position: relative;
+            width: 160px;
+            height: 100px;
+            background: linear-gradient(135deg, #4A5568 0%, #2D3748 100%);
+            border-radius: 60px 60px 30px 30px;
+            margin-bottom: 15px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(255, 255, 255, 0.1);
+        }
+        .robot-eyes {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            right: 25px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .eye {
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle, #4299E1 0%, #3182CE 100%);
+            border-radius: 50%;
+            animation: eyeGlow 2s ease-in-out infinite alternate;
+            box-shadow: 0 0 20px rgba(66, 153, 225, 1);
+        }
+        .eye.right {
+            animation-delay: 0.5s;
+        }
+        @keyframes eyeGlow {
+            0% { box-shadow: 0 0 20px rgba(66, 153, 225, 0.8); transform: scale(1); }
+            100% { box-shadow: 0 0 30px rgba(66, 153, 225, 1); transform: scale(1.1); }
+        }
+        .robot-antenna {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 30px;
+            background: #4A5568;
+            border-radius: 2px;
+        }
+        .robot-antenna::after {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 10px;
+            height: 10px;
+            background: #4299E1;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(66, 153, 225, 0.8);
+            animation: antennaBlink 3s infinite;
+        }
+        @keyframes antennaBlink {
+            0%, 90%, 100% { opacity: 1; }
+            95% { opacity: 0.5; }
+        }
+        .robot-body {
+            width: 140px;
+            height: 80px;
+            background: linear-gradient(135deg, #2D3748 0%, #4A5568 100%);
+            border-radius: 15px;
+            position: relative;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(255, 255, 255, 0.1);
+        }
+        .robot-arms {
+            position: absolute;
+            top: 15px;
+            left: -25px;
+            right: -25px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .arm {
+            width: 25px;
+            height: 50px;
+            background: #4A5568;
+            border-radius: 12px;
+            animation: armWave 4s ease-in-out infinite;
+        }
+        .arm.right {
+            animation-delay: -2s;
+        }
+        @keyframes armWave {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(15deg); }
+            75% { transform: rotate(-15deg); }
+        }
+        .robot-legs {
+            display: flex;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .leg {
+            width: 25px;
+            height: 50px;
+            background: #4A5568;
+            border-radius: 12px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+        }
+        @keyframes robotFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-15px); }
+        }
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+    <div class="planets">
+        <div class="planet small" style="top: 20%; left: 10%; animation-delay: 0s;"></div>
+        <div class="planet medium" style="top: 50%; right: 20%; animation-delay: 5s;"></div>
+        <div class="planet large" style="bottom: 30%; left: 30%; animation-delay: 10s;"></div>
+    </div>
+    <div class="rockets">
+        <div class="rocket" style="top: 10%; left: 20%; animation-delay: 0s;"><i class="fas fa-rocket"></i></div>
+        <div class="rocket" style="top: 60%; right: 10%; animation-delay: 8s;"><i class="fas fa-rocket"></i></div>
+    </div>
+    <div class="nav">
+        <a href="index.html"><i class="fas fa-home"></i> Home</a>
+        <a href="schedule.html"><i class="fas fa-plus-circle"></i> Schedule Meet</a>
+    </div>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-list"></i> Check My Meets</h1>
+            <div class="search-container">
+                <i class="fas fa-search" id="searchIconView"></i>
+                <input type="text" id="searchInputView" placeholder="Search events...">
+            </div>
+        </header>
+      
+        <div id="eventListView"></div>
+    </div>
+    <div class="robot-section">
+        <div class="robot">
+            <div class="robot-antenna"></div>
+            <div class="robot-head">
+                <div class="robot-eyes">
+                    <div class="eye"></div>
+                    <div class="eye right"></div>
+                </div>
+            </div>
+            <div class="robot-body">
+                <div class="robot-arms">
+                    <div class="arm"></div>
+                    <div class="arm right"></div>
+                </div>
+            </div>
+            <div class="robot-legs">
+                <div class="leg"></div>
+                <div class="leg"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Generate random stars
+        const starsContainer = document.querySelector('.stars');
+        for (let i = 0; i < 150; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.width = star.style.height = Math.random() * 4 + 1 + 'px';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            starsContainer.appendChild(star);
+        }
+        // Paste your firebaseConfig here (UPDATE THIS!)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAqvIinNNCN2DB2kCTSvSirePvug3pN8pY", // Your actual
+            authDomain: "event-tracker-cec96.firebaseapp.com",
+            databaseURL: "https://event-tracker-cec96-default-rtdb.firebaseio.com",
+            projectId: "event-tracker-cec96",
+            storageBucket: "event-tracker-cec96.firebasestorage.app",
+            messagingSenderId: "209545641771", // Your actual
+            appId: "1:209545641771:web:80dff5d19cde79336c8f6e" // Your actual
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const eventListViewDiv = document.getElementById('eventListView');
+        const searchInputView = document.getElementById('searchInputView');
+        let eventsCache = {};
+        function renderViewEvents(eventsData, query = '') {
+            const eventsObj = eventsData || {};
+            let events = Object.entries(eventsObj)
+               .filter(([key, event]) => {
+                 const searchTerm = query.toLowerCase();
+                 const category = event.category || 'Other';
+                 const timeStr = event.time || '';
+                 const venueStr = event.venue || '';
+                 return event.name.toLowerCase().includes(searchTerm) ||
+                       event.date.toLowerCase().includes(searchTerm) ||
+                       timeStr.toLowerCase().includes(searchTerm) ||
+                       category.toLowerCase().includes(searchTerm) ||
+                       venueStr.toLowerCase().includes(searchTerm);
+                })
+                .map(([key, event]) => ({
+                   id: key,
+                   ...event,
+                   category: event.category || 'Other',
+                   time: event.time || null,
+                   venue: event.venue || ''
+                }));
+           
+            events.sort((a, b) => {
+               const aDateTime = new Date(`${a.date}T${a.time || '00:00'}:00`);
+               const bDateTime = new Date(`${b.date}T${b.time || '00:00'}:00`);
+               return bDateTime - aDateTime;
+            });
+            const today = new Date(); // Define 'today' here
+            eventListViewDiv.innerHTML = events.map(event => {
+              const eventDateTime = new Date(`${event.date}T${event.time || '00:00'}:00`);
+              const isPast = eventDateTime < today;
+              const displayTime = event.time || 'All day';
+              return `
+                <div class="event ${event.category.toLowerCase()} ${isPast ? 'past' : ''}">
+                    <strong>${event.name}
+                        <span class="badge">${isPast ? 'Past' : ''}</span>
+                        <span class="category-badge ${event.category.toLowerCase()}">${event.category}</span>
+                    </strong> on ${event.date} at ${displayTime}
+                    ${event.venue ? `<div class="venue"><i class="fas fa-map-marker-alt"></i> ${event.venue}</div>` : ''}
+                    <div>ID: ${event.id}</div> <!-- Properly interpolated -->
+                    ${event.created_at ? `<br><small>Added: ${new Date(event.created_at).toLocaleString()}</small>` : ''}
+                </div>
+              `;
+             }).join('');
+       
+            console.log('Rendered', events.length, 'events for view');
+        }
+        // Real-time listener for events (using compat SDK)
+        const eventsRef = db.ref('events');
+        eventsRef.on('value', (snapshot) => {
+           eventsCache = snapshot.val() || {};
+           console.log('Fetched events hit in view');
+           console.log('Object.keys(eventsCache).length', Object.keys(eventsCache).length);
+           renderViewEvents(eventsCache, searchInputView.value.toLowerCase());
+        });
+        // Search input listener
+        searchInputView.addEventListener('input', (e) => {
+             console.log('Search input in view:', e.target.value);
+             renderViewEvents(eventsCache, e.target.value.toLowerCase());
+        });
+        window.onload = () => {
+            console.log('View page loaded - rendering events');
+            renderViewEvents(eventsCache, '');
+        };
+   </script>
+</body>
+</html>

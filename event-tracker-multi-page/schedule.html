@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schedule a Meet - Event Tracker</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #6B46C1 0%, #9F7AEA 50%, #A78BFA 100%);
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+            z-index: -1;
+        }
+        .nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .nav a {
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.8) 0%, rgba(159, 122, 234, 0.8) 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .nav a:hover {
+            transform: translateY(-2px);
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.8) 0%, rgba(159, 122, 234, 0.8) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 20px 30px;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            color: white;
+            margin: 0;
+            font-weight: 600;
+            font-size: 2.5em;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1 i {
+            font-size: 1.2em;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .search-container {
+            position: relative;
+        }
+        .search-container i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            pointer-events: none;
+        }
+        #searchInput {
+            padding: 12px 20px 12px 45px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.9) 0%, rgba(196, 181, 253, 0.9) 100%);
+            width: 200px;
+            font-size: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            color: white;
+        }
+        #searchInput::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        #searchInput:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.5);
+            width: 220px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.95) 0%, rgba(167, 139, 250, 0.95) 100%);
+        }
+        .form-section {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        input[type="text"], input[type="date"], input[type="time"], select {
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            flex: 1;
+            min-width: 120px;
+            background: white;
+        }
+        input[type="text"] { min-width: 150px; }
+        input[type="date"], input[type="time"], select { min-width: 130px; }
+        input[type="text"]:focus, input[type="date"]:focus, input[type="time"]:focus, select:focus {
+            outline: none;
+            border-color: #A78BFA;
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2);
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transition: left 0.5s;
+        }
+        button:hover::before {
+            left: 100%;
+        }
+        #addEvent {
+            background: linear-gradient(135deg, #A78BFA, #8B5CF6);
+            color: white;
+        }
+        #addEvent:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(167, 139, 250, 0.4);
+        }
+        #refreshList {
+            background: linear-gradient(135deg, #C4B5FD, #D6BCFA);
+            color: #6B46C1;
+            font-weight: 600;
+        }
+        #refreshList:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(196, 181, 253, 0.4);
+        }
+        #exportCSV {
+            background: linear-gradient(135deg, #10B981, #059669);
+            color: white;
+            font-weight: 600;
+        }
+        #exportCSV:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+        .event {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(232, 230, 250, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            margin: 15px 0;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .event::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #A78BFA, #8B5CF6);
+            border-radius: 20px 0 0 20px;
+        }
+        .event.work { border-left-color: #3B82F6; }
+        .event.work::before { background: linear-gradient(180deg, #3B82F6, #1D4ED8); }
+        .event.personal { border-left-color: #10B981; }
+        .event.personal::before { background: linear-gradient(180deg, #10B981, #059669); }
+        .event.holiday { border-left-color: #F59E0B; }
+        .event.holiday::before { background: linear-gradient(180deg, #F59E0B, #D97706); }
+        .event.other { border-left-color: #6B7280; }
+        .event.other::before { background: linear-gradient(180deg, #6B7280, #4B5563); }
+        .event.past {
+            opacity: 0.7;
+            border-left-color: #9CA3AF;
+        }
+        .event.past::before {
+            background: linear-gradient(180deg, #9CA3AF, #6B7280);
+        }
+        .event:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(232, 230, 250, 1) 100%);
+        }
+        .event strong {
+            color: #6B46C1;
+            font-size: 20px;
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .event .badge {
+            display: inline-block;
+            background: #F3F4F6;
+            color: #6B7280;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        .event .category-badge {
+            background: #E5E7EB;
+            color: #374151;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        .event .category-badge.work { background: #DBEAFE; color: #1E40AF; }
+        .event .category-badge.personal { background: #D1FAE5; color: #065F46; }
+        .event .category-badge.holiday { background: #FEF3C7; color: #92400E; }
+        .event .category-badge.other { background: #F3F4F6; color: #4B5563; }
+        .event .venue {
+            display: block;
+            color: #6B46C1;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+        .event small {
+            color: #888;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 15px;
+        }
+        .event button {
+            padding: 10px 18px;
+            margin: 5px 5px 0 0;
+            font-size: 14px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .event button:first-of-type {
+            background: linear-gradient(135deg, #A78BFA, #8B5CF6);
+            color: white;
+        }
+        .event button:first-of-type:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(167, 139, 250, 0.4);
+        }
+        .event button:last-of-type {
+            background: linear-gradient(135deg, #E879F9, #D946EF);
+            color: white;
+        }
+        .event button:last-of-type:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(232, 121, 249, 0.4);
+        }
+        #eventList {
+            margin-top: 20px;
+        }
+        /* Responsive */
+        @media (max-width: 600px) {
+            header { flex-direction: column; gap: 15px; text-align: center; }
+            .form-row { flex-direction: column; }
+            input[type="text"], input[type="date"], input[type="time"], select, button { min-width: auto; }
+            .event { padding: 20px; margin: 10px 0; }
+            .event button { width: 100%; margin: 5px 0; }
+            #searchInput { width: 100%; }
+            h1 { font-size: 2em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="index.html"><i class="fas fa-home"></i> Home</a>
+        <a href="view.html"><i class="fas fa-eye"></i> View Meets</a>
+    </div>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-calendar-plus"></i> Schedule a Meet</h1>
+            <div class="search-container">
+                <i class="fas fa-search" id="searchIcon"></i>
+                <input type="text" id="searchInput" placeholder="Search events...">
+            </div>
+        </header>
+       
+        <div class="form-section">
+            <div class="form-row">
+                <input type="text" id="eventName" placeholder="Event name (e.g., Team Meet)">
+                <input type="date" id="eventDate">
+                <input type="time" id="eventTime">
+                <select id="eventCategory">
+                    <option value="Other">Other</option>
+                    <option value="Work">Work</option>
+                    <option value="Personal">Personal</option>
+                    <option value="Holiday">Holiday</option>
+                </select>
+                <input type="text" id="eventVenue" placeholder="Venue (e.g., Conference Room A)">
+            </div>
+            <div class="form-row">
+                <button id="addEvent"><i class="fas fa-plus"></i> Add Event</button>
+                <button id="refreshList"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button id="exportCSV"><i class="fas fa-download"></i> Export CSV</button>
+            </div>
+        </div>
+       
+        <div id="eventList"></div>
+    </div>
+
+    <script>
+        // Paste your firebaseConfig here (from Firebase Console)
+        const firebaseConfig = {
+            apiKey: "AIzaSyAqvIinNNCN2DB2kCTSvSirePvug3pN8pY",
+            authDomain: "event-tracker-cec96.firebaseapp.com",
+            databaseURL: "https://event-tracker-cec96-default-rtdb.firebaseio.com",
+            projectId: "event-tracker-cec96",
+            storageBucket: "event-tracker-cec96.firebasestorage.app",
+            messagingSenderId: "209545641771",
+            appId: "1:209545641771:web:80dff5d19cde79336c8f6e",
+            measurementId: "G-84EVQ5V082"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const eventListDiv = document.getElementById('eventList');
+        const addEventBtn = document.getElementById('addEvent');
+        const refreshListBtn = document.getElementById('refreshList');
+        const exportCSVBtn = document.getElementById('exportCSV');
+        const nameInput = document.getElementById('eventName');
+        const dateInput = document.getElementById('eventDate');
+        const timeInput = document.getElementById('eventTime');
+        const venueInput = document.getElementById('eventVenue');
+        const categoryInput = document.getElementById('eventCategory');
+        const searchInput = document.getElementById('searchInput');
+        let editingId = null; // Track edit mode
+        let eventsCache = {}; // Cache for filtering without refetch
+
+        // Set today's date as default (using provided date: Oct 5, 2025)
+        const today = new Date('2025-10-05');
+        dateInput.value = today.toISOString().split('T')[0];
+        timeInput.value = '09:00'; // Default time
+
+        // Render events for schedule (with edit/delete)
+        function renderEvents(eventsData, query = '') {
+            const eventsObj = eventsData || {};
+            let events = Object.entries(eventsObj)
+                .filter(([key, event]) => {
+                    const searchTerm = query.toLowerCase();
+                    const category = event.category || 'Other';
+                    const timeStr = event.time || '';
+                    const venueStr = event.venue || '';
+                    return event.name.toLowerCase().includes(searchTerm) ||
+                           event.date.toLowerCase().includes(searchTerm) ||
+                           timeStr.toLowerCase().includes(searchTerm) ||
+                           category.toLowerCase().includes(searchTerm) ||
+                           venueStr.toLowerCase().includes(searchTerm);
+                })
+                .map(([key, event]) => ({
+                    id: key,
+                    ...event,
+                    category: event.category || 'Other',
+                    time: event.time || null,
+                    venue: event.venue || ''
+                }));
+
+            // Auto-sort by full datetime descending (newest first)
+            events.sort((a, b) => {
+                const aDateTime = new Date(`${a.date}T${a.time || '00:00'}:00`);
+                const bDateTime = new Date(`${b.date}T${b.time || '00:00

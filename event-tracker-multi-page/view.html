@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Check My Meets - Event Tracker</title>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #6B46C1 0%, #9F7AEA 50%, #A78BFA 100%);
+            min-height: 100vh;
+            color: #333;
+            position: relative;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.05"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+            pointer-events: none;
+            z-index: -1;
+        }
+        .nav {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .nav a {
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.8) 0%, rgba(159, 122, 234, 0.8) 100%);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-left: 10px;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        .nav a:hover {
+            transform: translateY(-2px);
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: linear-gradient(135deg, rgba(107, 70, 193, 0.8) 0%, rgba(159, 122, 234, 0.8) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 20px 30px;
+            border-radius: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        h1 {
+            color: white;
+            margin: 0;
+            font-weight: 600;
+            font-size: 2.5em;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1 i {
+            font-size: 1.2em;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .search-container {
+            position: relative;
+        }
+        .search-container i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 16px;
+            pointer-events: none;
+        }
+        #searchInputView {
+            padding: 12px 20px 12px 45px;
+            border: none;
+            border-radius: 25px;
+            background: linear-gradient(135deg, rgba(167, 139, 250, 0.9) 0%, rgba(196, 181, 253, 0.9) 100%);
+            width: 200px;
+            font-size: 16px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            color: white;
+        }
+        #searchInputView::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        #searchInputView:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.5);
+            width: 220px;
+            background: linear-gradient(135deg, rgba(139, 92, 246, 0.95) 0%, rgba(167, 139, 250, 0.95) 100%);
+        }
+        .event {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(232, 230, 250, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            margin: 15px 0;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .event::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, #A78BFA, #8B5CF6);
+            border-radius: 20px 0 0 20px;
+        }
+        .event.work { border-left-color: #3B82F6; }
+        .event.work::before { background: linear-gradient(180deg, #3B82F6, #1D4ED8); }
+        .event.personal { border-left-color: #10B981; }
+        .event.personal::before { background: linear-gradient(180deg, #10B981, #059669); }
+        .event.holiday { border-left-color: #F59E0B; }
+        .event.holiday::before { background: linear-gradient(180deg, #F59E0B, #D97706); }
+        .event.other { border-left-color: #6B7280; }
+        .event.other::before { background: linear-gradient(180deg, #6B7280, #4B5563); }
+        .event.past {
+            opacity: 0.7;
+            border-left-color: #9CA3AF;
+        }
+        .event.past::before {
+            background: linear-gradient(180deg, #9CA3AF, #6B7280);
+        }
+        .event:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(232, 230, 250, 1) 100%);
+        }
+        .event strong {
+            color: #6B46C1;
+            font-size: 20px;
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+        .event .badge {
+            display: inline-block;
+            background: #F3F4F6;
+            color: #6B7280;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        .event .category-badge {
+            background: #E5E7EB;
+            color: #374151;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+            font-weight: 500;
+        }
+        .event .category-badge.work { background: #DBEAFE; color: #1E40AF; }
+        .event .category-badge.personal { background: #D1FAE5; color: #065F46; }
+        .event .category-badge.holiday { background: #FEF3C7; color: #92400E; }
+        .event .category-badge.other { background: #F3F4F6; color: #4B5563; }
+        .event .venue {
+            display: block;
+            color: #6B46C1;
+            font-weight: 500;
+            margin-top: 5px;
+        }
+        .event small {
+            color: #888;
+            font-size: 14px;
+            display: block;
+            margin-bottom: 15px;
+        }
+        #eventListView {
+            margin-top: 20px;
+        }
+        /* Responsive */
+        @media (max-width: 600px) {
+            header { flex-direction: column; gap: 15px; text-align: center; }
+            #searchInputView { width: 100%; }
+            h1 { font-size: 2em; }
+            .event { padding: 20px; margin: 10px 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <a href="index.html"><i class="fas fa-home"></i> Home</a>
+        <a href="schedule.html"><i class="fas fa-plus-circle"></i> Schedule Meet</a>
+    </div>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-list"></i> Check My Meets</h1>
+            <div class="search-container">
+                <i class="fas fa-search" id="searchIconView"></i>
+                <input type="text" id="searchInputView" placeholder="Search events...">
+            </div>
+        </header>
+       
+        <div id="eventListView"></div>
+    </div>
+
+    <script>
+        // Paste your firebaseConfig here (from Firebase Console)
+        const firebaseConfig = {
+             apiKey: "AIzaSyAqvIinNNCN2DB2kCTSvSirePvug3pN8pY",
+             authDomain: "event-tracker-cec96.firebaseapp.com",
+             databaseURL: "https://event-tracker-cec96-default-rtdb.firebaseio.com",
+             projectId: "event-tracker-cec96",
+             storageBucket: "event-tracker-cec96.firebasestorage.app",
+             messagingSenderId: "209545641771",
+             appId: "1:209545641771:web:80dff5d19cde79336c8f6e",
+             measurementId: "G-84EVQ5V082"
+        };
+        const firebaseConfig = {
+            apiKey: "AIzaSy...", // Your actual apiKey
+            authDomain: "event-tracker-cec96.firebaseapp.com",
+            databaseURL: "https://event-tracker-cec96-default-rtdb.firebaseio.com/", // Your DB URL
+            projectId: "event-tracker-cec96",
+            storageBucket: "event-tracker-cec96.appspot.com",
+            messagingSenderId: "123...", // Your actual
+            appId: "1:123...:web:abc..." // Your actual
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const eventListViewDiv = document.getElementById('eventListView');
+        const searchInputView = document.getElementById('searchInputView');
+        let eventsCache = {}; // Cache for filtering without refetch
+
+        // Set today's date as default (using provided date: Oct 5, 2025)
+        const today = new Date('2025-10-05');
+
+        // Render events for view (read-only, no buttons)
+        function renderViewEvents(eventsData, query = '') {
+            const eventsObj = eventsData || {};
+            let events = Object.entries(eventsObj)
+                .filter(([key, event]) => {
+                    const searchTerm = query.toLowerCase();
+                    const category = event.category || 'Other';
+                    const timeStr = event.time || '';
+                    const venueStr = event.venue || '';
+                    return event.name.toLowerCase().includes(searchTerm) ||
+                           event.date.toLowerCase().includes(searchTerm) ||
+                           timeStr.toLowerCase().includes(searchTerm) ||
+                           category.toLowerCase().includes(searchTerm) ||
+                           venueStr.toLowerCase().includes(searchTerm);
+                })
+                .map(([key, event]) => ({
+                    id: key,
+                    ...event,
+                    category: event.category || 'Other',
+                    time: event.time || null,
+                    venue: event.venue || ''
+                }));
+
+            // Auto-sort by full datetime descending (newest first)
+            events.sort((a, b) => {
+                const aDateTime = new Date(`${a.date}T${a.time || '00:00'}:00`);
+                const bDateTime = new Date(`${b.date}T${b.time || '00:00'}:00`);
+                return bDateTime - aDateTime;
+            });
+
+            eventListViewDiv.innerHTML = events.map(event => {
+                const eventDateTime = new Date(`${event.date}T${event.time || '00:00'}:00`);
+                const isPast = eventDateTime < today;
+                const displayTime = event.time || 'All day';
+                return `
+                    <div class="event ${event.category.toLowerCase()} ${isPast ? 'past' : ''}">
+                        <strong>${event.name} 
+                            <span class="badge">${isPast ? 'Past' : ''}</span>
+                            <span class="category-badge ${event.category.toLowerCase()}">${event.category}</span>
+                        </strong> on ${event.date} at ${displayTime}
+                        ${event.venue ? `<div class="venue"><i class="fas fa-map-marker-alt"></i> ${event.venue}</div>` : ''}
+                        (ID: ${event.id})
+                        ${event.created_at ? `<br><small>Added: ${new Date(event.created_at).toLocaleString()}</small>` : ''}
+                    </div>
+                `;
+            }).join('');
+            console.log(`👁️ Rendered ${events.length} events for view`);
+        }
+
+        // Real-time listeners for granular updates
+        const eventsRef = db.ref('events');
+
+        // Initial load
+        eventsRef.once('value', (snapshot) => {
+            eventsCache = snapshot.val() || {};
+            console.log('GET /events hit');
+            console.log('Fetched events:', Object.keys(eventsCache).length);
+            renderViewEvents(eventsCache, searchInputView.value.toLowerCase());
+        });
+
+        // Child added listener
+        eventsRef.on('child_added', (snapshot) => {
+            const newEvent = snapshot.val();
+            eventsCache[snapshot.key] = newEvent;
+            console.log('🔥 Synced to Firebase:', { id: snapshot.key, ...newEvent });
+            renderViewEvents(eventsCache, searchInputView.value.toLowerCase());
+        });
+
+        // Child changed listener
+        eventsRef.on('child_changed', (snapshot) => {
+            const updatedEvent = snapshot.val();
+            eventsCache[snapshot.key] = updatedEvent;
+            console.log('🔥 Synced to Firebase (updated):', { id: snapshot.key, ...updatedEvent });
+            renderViewEvents(eventsCache, searchInputView.value.toLowerCase());
+        });
+
+        // Child removed listener
+        eventsRef.on('child_removed', (snapshot) => {
+            const removedId = snapshot.key;
+            delete eventsCache[removedId];
+            console.log('🔥 Synced to Firebase (removed):', removedId);
+            renderViewEvents(eventsCache, searchInputView.value.toLowerCase());
+        });
+
+        // Search functionality for view
+        searchInputView.addEventListener('input', (e) => {
+            renderViewEvents(eventsCache, e.target.value.toLowerCase());
+        });
+
+        // Auto-render on page load
+        window.onload = () => {
+            renderViewEvents(eventsCache, '');
+        };
+    </script>
+</body>
+</html>
